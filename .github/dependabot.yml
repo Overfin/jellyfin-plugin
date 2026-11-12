@@ -1,0 +1,15 @@
+# Keeps the dependencies up to date, by pull request: NuGet packages (not
+# Jellyfin's own, which follow the Jellyfin Overfin ships) and the
+# workflow's GitHub Actions.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      - dependency-name: "Jellyfin.*"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
