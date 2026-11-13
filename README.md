@@ -5,9 +5,16 @@ routes under `/Overfin/` on Overfin's own Jellyfin, where Jellyfin's API falls
 short. Overfin installs it itself, with the Jellyfin it's built for; nobody
 installs it by hand, and it answers no one but Overfin.
 
-Today it only says its version and Jellyfin's (`GET /Overfin/Info`). Planned,
-one at a time: text subtitles by stretches of time, without reading the whole
-file; one frame of a video; a numbered feed of the library's changes.
+What it does:
+
+- `GET /Overfin/Info`: its version and Jellyfin's.
+- `GET /Overfin/Subtitles/{item}/{source}/{index}?from=&to=`: one subtitle
+  track between two times (seconds, at most ten minutes), read from that
+  point of the file with Jellyfin's ffmpeg instead of the whole file: text
+  as WebVTT, pictures (PGS) copied as they are.
+
+Planned, one at a time: one frame of a video; a numbered feed of the
+library's changes.
 
 ## Building
 
