@@ -20,7 +20,13 @@ What it does:
   moment, as a JPEG at most 1920 pixels wide, HDR mapped to standard range
   with Jellyfin's own tone mapping: for episodes TMDB has no picture for.
 
-Planned: a numbered feed of the library's changes.
+- `GET /Overfin/Items?after=&limit=` (or `?ids=`): the library's films,
+  series, seasons and episodes as Overfin's index keeps them, by ID, so
+  pages never shift. Never a path: a film's file and folder names, a
+  series' folder name.
+- `GET /Overfin/Changes?generation=&since=`: Jellyfin's own library events
+  (added, changed, removed), numbered, kept in memory: a new generation at
+  each start, when Overfin reads the library again.
 
 ## Building
 

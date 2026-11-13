@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +18,12 @@ namespace Overfin.Jellyfin;
 /// <summary>The plugin's version and Jellyfin's, for Overfin to check at start.</summary>
 public record InfoAnswer(string Plugin, string Jellyfin);
 
+/// <summary>
+/// The library's changes since a number: Reset when the reader must read
+/// everything again first (from Generation and Last).
+/// </summary>
+public record ChangesAnswer(string Generation, long Last, bool Reset, List<Change> Changes);
+
 /// <summary>The plugin's routes, for Overfin alone.</summary>
 [ApiController]
 [Route("Overfin")]
@@ -34,13 +41,79 @@ public class OverfinController : ControllerBase
     private readonly ILibraryManager _library;
     private readonly IMediaSourceManager _sources;
     private readonly IMediaEncoder _encoder;
+    private readonly ChangeFeed _feed;
 
-    public OverfinController(IServerApplicationHost host, ILibraryManager library, IMediaSourceManager sources, IMediaEncoder encoder)
+    public OverfinController(IServerApplicationHost host, ILibraryManager library, IMediaSourceManager sources, IMediaEncoder encoder, ChangeFeed feed)
     {
         _host = host;
         _library = library;
         _sources = sources;
         _encoder = encoder;
+        _feed = feed;
+    }
+
+    /// <summary>The most items one page of the index may hold.</summary>
+    private const int MaxPage = 2000;
+
+    /// <summary>
+    /// GET /Overfin/Items?after=&amp;limit= : the films, series, seasons and
+    /// episodes of every library, as Overfin's index keeps them, by ID, after
+    /// `after`; or, with ids (at most 200, comma-separated), those of them
+    /// still in a library. Never a path (IndexItem).
+    /// </summary>
+    [HttpGet("Items")]
+    public ActionResult<IndexPage> Items([FromQuery] string? after, [FromQuery] int limit = 500, [FromQuery] string? ids = null)
+    {
+        if (ids is not null)
+        {
+            var list = new List<Guid>();
+            foreach (var s in ids.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (list.Count == 200 || !Guid.TryParseExact(s, "N", out var id))
+                {
+                    return NotFound();
+                }
+
+                if (id != Guid.Empty)
+                {
+                    list.Add(id);
+                }
+            }
+
+            return new IndexPage(IndexItems.ByIds(_library, list), null);
+        }
+
+        if (limit < 1 || limit > MaxPage || (after is not null && !Guid.TryParseExact(after, "N", out _)))
+        {
+            return NotFound();
+        }
+
+        return IndexItems.Page(_library, after?.ToLowerInvariant(), limit);
+    }
+
+    /// <summary>
+    /// GET /Overfin/Changes?generation=&amp;since=&amp;limit= : the items changed
+    /// after `since` in this generation of the feed (Jellyfin's start), at
+    /// most `limit` (5000); Reset, with the current generation and number,
+    /// when the reader must read the library again first.
+    /// </summary>
+    [HttpGet("Changes")]
+    public ActionResult<ChangesAnswer> Changes([FromQuery] string? generation, [FromQuery] long since = 0, [FromQuery] int limit = 1000)
+    {
+        if (limit < 1 || limit > 5000)
+        {
+            return NotFound();
+        }
+
+        // The number first: changes noted while the reader reads everything
+        // again come after it.
+        var last = _feed.Last;
+        if (generation is null || _feed.Since(generation, since, limit) is not { } got)
+        {
+            return new ChangesAnswer(_feed.Generation, last, true, []);
+        }
+
+        return new ChangesAnswer(_feed.Generation, got.Last, false, got.Changes);
     }
 
     /// <summary>GET /Overfin/Info: which plugin and which Jellyfin answer.</summary>

@@ -6,7 +6,7 @@
     <AssemblyName>Overfin.Jellyfin</AssemblyName>
     <RootNamespace>Overfin.Jellyfin</RootNamespace>
     <!-- The plugin's version: the one Overfin pins. -->
-    <Version>0.4.0</Version>
+    <Version>0.5.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <!-- Jellyfin's own, at the version of the Jellyfin it's built for;
