@@ -12,8 +12,9 @@ these rules. A change that breaks one is a bug. Overfin's own rules are in its
 2. The plugin only reads: it never changes an item, a user, a setting or a
    file, and never writes into media folders.
 3. It calls nothing on the network.
-4. Its answers carry only what each route says: no paths, no file names, no
-   user data.
+4. Its answers carry only what each route says: no paths and no user data;
+   file and folder names only from the index's route (a film's file and
+   folder, a series' folder).
 5. Its releases are built by this repository's CI from a tag, with actions and
    dependencies pinned, and Overfin pins the version it ships.
 6. It runs only Jellyfin's own ffmpeg, without a shell, with fixed
