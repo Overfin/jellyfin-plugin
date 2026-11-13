@@ -16,6 +16,13 @@ these rules. A change that breaks one is a bug. Overfin's own rules are in its
    user data.
 5. Its releases are built by this repository's CI from a tag, with actions and
    dependencies pinned, and Overfin pins the version it ships.
+6. It runs only Jellyfin's own ffmpeg, without a shell, with fixed
+   arguments: the item, version and track by Jellyfin's IDs, times as numbers
+   it checked, the path Jellyfin keeps for the file, always read as a file.
+   Never a URL, and nothing else from a request. Only files on disk: a track
+   Jellyfin marks as from the network is refused. Each run has a 30-second
+   time limit and an output size limit (5 MB of text, 64 MB of pictures), and
+   at most four run at once.
 
 ## Reporting a vulnerability
 
