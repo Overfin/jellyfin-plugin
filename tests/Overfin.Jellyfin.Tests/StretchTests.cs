@@ -38,8 +38,8 @@ public class StretchTests
     {
         var args = Stretch.Arguments("/media/a:b.mkv", false, 7, 1790.5, 1920, StretchFormat.Sup);
         Assert.Equal(
-            ["-nostdin", "-hide_banner", "-loglevel", "error", "-copyts", "-ss", "1790.5", "-t", "129.5",
-             "-i", "file:/media/a:b.mkv", "-map", "0:7", "-c:s", "copy", "-f", "sup", "pipe:1"],
+            ["-nostdin", "-hide_banner", "-loglevel", "error", "-copyts", "-ss", "1790.5",
+             "-i", "file:/media/a:b.mkv", "-map", "0:7", "-to", "1920", "-c:s", "copy", "-f", "sup", "pipe:1"],
             args);
         var text = Stretch.Arguments("/media/a.fr.srt", true, 12, 0, 120, StretchFormat.WebVtt);
         Assert.Contains("0:s:0", text);

@@ -43,9 +43,11 @@ internal static class Stretch
     };
 
     /// <summary>
-    /// ffmpeg's arguments: read from `from` for `to - from` seconds (a seek,
-    /// not a read of the whole file), keep the file's own times, take one
-    /// stream, write it to the standard output. external: the track is a file
+    /// ffmpeg's arguments: read from `from` (a seek, not a read of the whole
+    /// file), keep the file's own times, take one stream, stop writing at
+    /// `to`, write it to the standard output. The end is the output's: as the
+    /// input's (-t or -to before -i), some files are read to their end
+    /// (Inception's 4K Matroska: 36 s for a stretch instead of 1.5 s). external: the track is a file
     /// of its own, its first subtitle stream; else stream `index` of the
     /// video file.
     /// </summary>
@@ -55,9 +57,10 @@ internal static class Stretch
         {
             "-nostdin", "-hide_banner", "-loglevel", "error",
             "-copyts",
-            "-ss", Seconds(from), "-t", Seconds(to - from),
+            "-ss", Seconds(from),
             "-i", "file:" + path,
             "-map", external ? "0:s:0" : "0:" + index.ToString(CultureInfo.InvariantCulture),
+            "-to", Seconds(to),
         };
         if (format == StretchFormat.Sup)
         {
