@@ -23,6 +23,12 @@ these rules. A change that breaks one is a bug. Overfin's own rules are in its
    Jellyfin marks as from the network is refused. Each run has a 30-second
    time limit and an output size limit (5 MB of text, 64 MB of pictures), and
    at most four run at once.
+7. It reads Matroska and WebM files itself only to find a stretch of
+   subtitles, read only. Every size is checked against the element that holds
+   it and against fixed limits: 16 MB for the file's headers, 64 MB for its
+   index, 4 MB for a subtitle block (16 MB once uncompressed), 4 GB walked for
+   one stretch. It runs within the same time limit and four-at-once as ffmpeg
+   (rule 6). Anything it doesn't expect, it leaves to ffmpeg.
 
 ## Reporting a vulnerability
 
