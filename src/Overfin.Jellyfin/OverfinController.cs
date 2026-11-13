@@ -83,13 +83,52 @@ public class OverfinController : ControllerBase
             return NotFound();
         }
 
+        var max = format == StretchFormat.Sup ? MaxPictures : MaxText;
+        var contentType = format == StretchFormat.Sup ? "application/octet-stream" : "text/vtt; charset=utf-8";
+
+        // A track inside a Matroska file: read from the file's own index, which
+        // stops at the stretch's end whatever the track; ffmpeg otherwise.
+        if (!track.IsExternal)
+        {
+            var (fromMkv, mkvFailure) = await Ffmpeg.Within(token => FromMkv(path, fileIndex, from, to, format.Value, max, token), cancel).ConfigureAwait(false);
+            if (mkvFailure == RunFailure.TooSlow)
+            {
+                return StatusCode(StatusCodes.Status504GatewayTimeout);
+            }
+
+            if (fromMkv is not null)
+            {
+                return File(fromMkv, contentType);
+            }
+        }
+
         var args = Stretch.Arguments(path, track.IsExternal, fileIndex, from, to, format.Value);
-        var (output, failure) = await Ffmpeg.Run(_encoder.EncoderPath, args, format == StretchFormat.Sup ? MaxPictures : MaxText, cancel).ConfigureAwait(false);
+        var (output, failure) = await Ffmpeg.Run(_encoder.EncoderPath, args, max, cancel).ConfigureAwait(false);
         if (failure != RunFailure.None)
         {
             return StatusCode(failure == RunFailure.TooSlow ? StatusCodes.Status504GatewayTimeout : StatusCodes.Status502BadGateway);
         }
 
-        return File(output, format == StretchFormat.Sup ? "application/octet-stream" : "text/vtt; charset=utf-8");
+        return File(output, contentType);
+    }
+
+    // FromMkv reads a stretch with the Matroska reader; null when the file or
+    // the track isn't one it reads, or the result isn't what was asked.
+    private static byte[]? FromMkv(string path, int fileIndex, double from, double to, StretchFormat format, int max, CancellationToken cancel)
+    {
+        try
+        {
+            if (Mkv.Read(path, fileIndex, from, to, cancel) is not { } read || StretchOutput.FormatOf(read.Codec) != format)
+            {
+                return null;
+            }
+
+            var bytes = format == StretchFormat.Sup ? StretchOutput.Sup(read.Blocks) : StretchOutput.WebVtt(read.Codec, read.Blocks);
+            return bytes.Length <= max ? bytes : null;
+        }
+        catch (Exception e) when (e is System.IO.IOException or System.IO.InvalidDataException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 }

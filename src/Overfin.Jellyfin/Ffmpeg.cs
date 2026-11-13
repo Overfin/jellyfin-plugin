@@ -93,6 +93,34 @@ internal static class Ffmpeg
         }
     }
 
+    /// <summary>
+    /// Runs other work on a file within the same limits: a slot among the
+    /// few, the time limit. Its value, or why there's none.
+    /// </summary>
+    public static async Task<(T? Value, RunFailure Failure)> Within<T>(Func<CancellationToken, T?> work, CancellationToken cancel)
+        where T : class
+    {
+        await Slots.WaitAsync(cancel).ConfigureAwait(false);
+        try
+        {
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+            limit.CancelAfter(TimeLimit);
+            try
+            {
+                return (await Task.Run(() => work(limit.Token), limit.Token).ConfigureAwait(false), RunFailure.None);
+            }
+            catch (OperationCanceledException)
+            {
+                cancel.ThrowIfCancellationRequested();
+                return (null, RunFailure.TooSlow);
+            }
+        }
+        finally
+        {
+            Slots.Release();
+        }
+    }
+
     private static void Kill(Process process)
     {
         try

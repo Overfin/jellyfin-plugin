@@ -10,8 +10,11 @@ What it does:
 - `GET /Overfin/Info`: its version and Jellyfin's.
 - `GET /Overfin/Subtitles/{item}/{source}/{index}?from=&to=`: one subtitle
   track between two times (seconds, at most ten minutes), read from that
-  point of the file with Jellyfin's ffmpeg instead of the whole file: text
-  as WebVTT, pictures (PGS) copied as they are.
+  point of the file instead of the whole file: text as WebVTT, pictures
+  (PGS) copied as they are. Matroska and WebM files are read from their own
+  index by the plugin, which stops at the stretch's end whatever the track
+  (ffmpeg can't, on a track with few lines); other files go through
+  Jellyfin's ffmpeg.
 
 Planned, one at a time: one frame of a video; a numbered feed of the
 library's changes.
