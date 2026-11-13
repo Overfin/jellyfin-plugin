@@ -16,8 +16,11 @@ What it does:
   (ffmpeg can't, on a track with few lines); other files go through
   Jellyfin's ffmpeg.
 
-Planned, one at a time: one frame of a video; a numbered feed of the
-library's changes.
+- `GET /Overfin/Frame/{item}/{source}?at=`: one frame of a video at a
+  moment, as a JPEG at most 1920 pixels wide, HDR mapped to standard range
+  with Jellyfin's own tone mapping: for episodes TMDB has no picture for.
+
+Planned: a numbered feed of the library's changes.
 
 ## Building
 

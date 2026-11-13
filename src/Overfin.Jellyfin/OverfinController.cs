@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
@@ -110,6 +111,42 @@ public class OverfinController : ControllerBase
         }
 
         return File(output, contentType);
+    }
+
+    /// <summary>The most a frame may weigh, as a JPEG.</summary>
+    private const int MaxFrame = 10 << 20;
+
+    /// <summary>
+    /// GET /Overfin/Frame/{item}/{source}?at=: one frame of that version at
+    /// that moment (seconds), as a JPEG at most 1920 pixels wide, HDR mapped
+    /// to standard range. Only files on disk: a stream from the network is a
+    /// 404, never fetched.
+    /// </summary>
+    [HttpGet("Frame/{item:guid}/{source}")]
+    public async Task<IActionResult> Frame(Guid item, string source, [FromQuery] double at, CancellationToken cancel)
+    {
+        if (!Jellyfin.Frame.Valid(at))
+        {
+            return NotFound();
+        }
+
+        var video = _library.GetItemById(item);
+        var media = video is null ? null : _sources.GetStaticMediaSources(video, false).FirstOrDefault(s => s.Id == source);
+        var stream = media?.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Video && !s.IsExternal);
+        if (media is null || stream is null || media.Protocol != MediaProtocol.File || string.IsNullOrEmpty(media.Path))
+        {
+            return NotFound();
+        }
+
+        var hdr = stream.VideoRange == VideoRange.HDR;
+        var (output, failure) = await Ffmpeg.Run(_encoder.EncoderPath, Jellyfin.Frame.Arguments(media.Path, at, hdr), MaxFrame, cancel).ConfigureAwait(false);
+        if (failure != RunFailure.None)
+        {
+            return StatusCode(failure == RunFailure.TooSlow ? StatusCodes.Status504GatewayTimeout : StatusCodes.Status502BadGateway);
+        }
+
+        // A moment past the end gives no frame.
+        return output.Length == 0 ? NotFound() : File(output, "image/jpeg");
     }
 
     // FromMkv reads a stretch with the Matroska reader; null when the file or
