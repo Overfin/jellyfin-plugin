@@ -38,7 +38,8 @@ public sealed record IndexItem(
     string? FileName,
     List<IndexStream>? MediaStreams);
 
-/// <summary>An audio or subtitle track, as the index reads its languages.</summary>
+/// <summary>An audio or subtitle track, as the index reads its languages;
+/// or the video, as the index names it (its size, codec and range).</summary>
 public sealed record IndexStream(
     int Index,
     string Type,
@@ -49,7 +50,10 @@ public sealed record IndexStream(
     bool IsDefault,
     bool IsForced,
     bool IsHearingImpaired,
-    bool IsTextSubtitleStream);
+    bool IsTextSubtitleStream,
+    int? Width = null,
+    int? Height = null,
+    string? VideoRange = null);
 
 /// <summary>A page of the index's items, and where the next starts.</summary>
 public sealed record IndexPage(List<IndexItem> Items, string? Next);
@@ -157,11 +161,19 @@ internal static class IndexItems
         List<IndexStream>? streams = null;
         if (item is Movie or Episode)
         {
-            streams = item.GetMediaStreams()
+            var all = item.GetMediaStreams();
+            streams = all
                 .Where(s => s.Type is MediaStreamType.Audio or MediaStreamType.Subtitle)
                 .Select(s => new IndexStream(s.Index, s.Type.ToString(), s.Codec, s.Language, s.Title, s.Channels,
                     s.IsDefault, s.IsForced, s.IsHearingImpaired, s.IsTextSubtitleStream))
                 .ToList();
+            // The picture: its first video stream in the file, for its name.
+            var video = all.FirstOrDefault(s => s.Type == MediaStreamType.Video && !s.IsExternal);
+            if (video is not null)
+            {
+                streams.Insert(0, new IndexStream(video.Index, video.Type.ToString(), video.Codec, null, null, null,
+                    video.IsDefault, false, false, false, video.Width, video.Height, video.VideoRange.ToString()));
+            }
         }
 
         Guid? seriesId = item switch { Episode e => e.SeriesId, Season s => s.SeriesId, _ => null };
