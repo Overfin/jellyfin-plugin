@@ -166,10 +166,27 @@ public class MkvTests
     public void GivesUp()
     {
         Assert.Null(Mkv.ReadFrom(new MemoryStream(Encoding.ASCII.GetBytes("not a matroska file at all"), false), 1, 0, 10, CancellationToken.None));
+        // A position the file can't have (as a FileStream answers one that
+        // overflowed to a negative number): null, for ffmpeg to read it.
+        Assert.Null(Mkv.ReadFrom(new Strict(File(10, Lines)), 1, 0, 10, CancellationToken.None));
         Assert.Null(Mkv.ReadFrom(new MemoryStream(File(5, Lines), false), 0, 0, 10, CancellationToken.None)); // the video track
         var cut = File(5, Lines)[..^10]; // cut off inside its last cluster
         Assert.Null(Read(cut, 0, 10));
         var bzip = El(0x6D80, El(0x6240, El(0x5034, El(0x4254, UInt(1)))));
         Assert.Null(Read(File(5, Lines, encodings: bzip), 0, 10));
+    }
+
+    // A stream that refuses every position after the first cluster, as a
+    // FileStream does a negative one.
+    private sealed class Strict(byte[] data) : MemoryStream(data, false)
+    {
+        public override long Position
+        {
+            get => base.Position;
+            set => base.Position = value > 200 ? throw new ArgumentOutOfRangeException(nameof(value)) : value;
+        }
+
+        public override long Seek(long offset, SeekOrigin loc) =>
+            loc == SeekOrigin.Begin && offset > 200 ? throw new ArgumentOutOfRangeException(nameof(offset)) : base.Seek(offset, loc);
     }
 }

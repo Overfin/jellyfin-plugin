@@ -58,7 +58,9 @@ internal static class Mkv
         {
             return Walk(file, fileIndex, from, to, cancel);
         }
-        catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+        // A position the file can't have (past its end, or overflowing once
+        // added to the segment's start) is damage too: ffmpeg reads it then.
+        catch (Exception e) when (e is InvalidDataException or EndOfStreamException or ArgumentOutOfRangeException or OverflowException)
         {
             return null;
         }
