@@ -68,18 +68,45 @@ internal static partial class StretchOutput
 
     // AssText is an ASS or SSA block's text: its ninth field (ReadOrder,
     // Layer or Marked, Style, Name, MarginL, MarginR, MarginV, Effect, Text),
-    // without {overrides}; \N and \n are new lines, \h a space.
+    // without {overrides} nor drawings (what follows \p1 until \p0: shapes,
+    // not words); \N and \n are new lines, \h a space.
     internal static string AssText(string block)
     {
         var fields = block.Split(',', 9);
         var text = fields.Length == 9 ? fields[8] : block;
-        text = Overrides().Replace(text, string.Empty);
-        return text.Replace("\\N", "\n", StringComparison.Ordinal).Replace("\\n", "\n", StringComparison.Ordinal)
+        var kept = new StringBuilder();
+        var drawing = false;
+        var at = 0;
+        foreach (Match m in Overrides().Matches(text))
+        {
+            if (!drawing)
+            {
+                kept.Append(text, at, m.Index - at);
+            }
+
+            var modes = DrawingMode().Matches(m.Value);
+            if (modes.Count > 0)
+            {
+                drawing = modes[^1].Groups[1].Value.TrimStart('0').Length > 0;
+            }
+
+            at = m.Index + m.Length;
+        }
+
+        if (!drawing)
+        {
+            kept.Append(text, at, text.Length - at);
+        }
+
+        return kept.ToString().Replace("\\N", "\n", StringComparison.Ordinal).Replace("\\n", "\n", StringComparison.Ordinal)
             .Replace("\\h", " ", StringComparison.Ordinal);
     }
 
     [GeneratedRegex(@"\{[^}]*\}")]
     private static partial Regex Overrides();
+
+    [GeneratedRegex(@"\\p(\d+)")]
+    private static partial Regex DrawingMode();
 
     private static string Time(double s)
     {

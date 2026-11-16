@@ -132,6 +132,10 @@ public class MkvTests
         Assert.Equal("WEBVTT\n\n00:00:02.000 --> 00:00:02.500\nHi\nthere\n\n00:00:03.000 --> 00:00:03.500\na -> b\n",
             Encoding.UTF8.GetString(StretchOutput.WebVtt(read.Codec, read.Blocks)));
         Assert.Equal("Hello\nworld here", StretchOutput.AssText(@"3,0,Default,,0,0,0,,{\i1}Hello\Nworld\hhere"));
+        // A drawing (a sign's shape) is no text; \pos and \pbo aren't drawing modes.
+        Assert.Equal("Sign", StretchOutput.AssText(@"3,0,Default,,0,0,0,,{\pos(10,10)\p1}m 0 0 l 100 0 100 100 0 100{\p0}Sign"));
+        Assert.Equal("", StretchOutput.AssText(@"3,0,Default,,0,0,0,,{\an7\p2}m 0 0 l 10 0 10 10"));
+        Assert.Equal("Box text", StretchOutput.AssText(@"3,0,Default,,0,0,0,,{\pbo2}Box text"));
     }
 
     // PGS, zlib-compressed as mkvmerge stores it: each segment gets its .sup
