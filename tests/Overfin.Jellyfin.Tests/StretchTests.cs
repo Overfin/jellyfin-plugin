@@ -38,12 +38,25 @@ public class StretchTests
     {
         var args = Stretch.Arguments("/media/a:b.mkv", false, 7, 1790.5, 1920, StretchFormat.Sup);
         Assert.Equal(
-            ["-nostdin", "-hide_banner", "-loglevel", "error", "-copyts", "-ss", "1790.5",
+            ["-nostdin", "-hide_banner", "-loglevel", "error", "-copyts", "-start_at_zero", "-ss", "1790.5",
              "-i", "file:/media/a:b.mkv", "-map", "0:7", "-to", "1920", "-c:s", "copy", "-f", "sup", "pipe:1"],
             args);
         var text = Stretch.Arguments("/media/a.fr.srt", true, 12, 0, 120, StretchFormat.WebVtt);
         Assert.Contains("0:s:0", text);
         Assert.Equal(["-c:s", "webvtt", "-f", "webvtt", "pipe:1"], text.Skip(text.Count - 5));
+    }
+
+    // A separate text file's character set goes to ffmpeg before the input,
+    // unless it's UTF-8 or not a plain name; never for a track in the video.
+    [Fact]
+    public void Charset()
+    {
+        var latin = Stretch.Arguments("/media/a.fr.srt", true, 0, 0, 120, StretchFormat.WebVtt, "windows-1252");
+        var at = latin.ToList().IndexOf("-sub_charenc");
+        Assert.True(at >= 0 && latin[at + 1] == "windows-1252" && at < latin.ToList().IndexOf("-i"));
+        Assert.DoesNotContain("-sub_charenc", Stretch.Arguments("/media/a.fr.srt", true, 0, 0, 120, StretchFormat.WebVtt, "UTF-8"));
+        Assert.DoesNotContain("-sub_charenc", Stretch.Arguments("/media/a.fr.srt", true, 0, 0, 120, StretchFormat.WebVtt, "x; -y"));
+        Assert.DoesNotContain("-sub_charenc", Stretch.Arguments("/media/a.mkv", false, 3, 0, 120, StretchFormat.WebVtt, "windows-1252"));
     }
 
     // A separate .srt numbered 0 by Jellyfin shifts the file's own streams.

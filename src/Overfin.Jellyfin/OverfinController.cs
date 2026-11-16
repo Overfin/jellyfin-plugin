@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,14 +42,16 @@ public class OverfinController : ControllerBase
     private readonly ILibraryManager _library;
     private readonly IMediaSourceManager _sources;
     private readonly IMediaEncoder _encoder;
+    private readonly ISubtitleEncoder _subtitles;
     private readonly ChangeFeed _feed;
 
-    public OverfinController(IServerApplicationHost host, ILibraryManager library, IMediaSourceManager sources, IMediaEncoder encoder, ChangeFeed feed)
+    public OverfinController(IServerApplicationHost host, ILibraryManager library, IMediaSourceManager sources, IMediaEncoder encoder, ISubtitleEncoder subtitles, ChangeFeed feed)
     {
         _host = host;
         _library = library;
         _sources = sources;
         _encoder = encoder;
+        _subtitles = subtitles;
         _feed = feed;
     }
 
@@ -123,7 +126,7 @@ public class OverfinController : ControllerBase
 
     /// <summary>
     /// GET /Overfin/Subtitles/{item}/{source}/{index}?from=&amp;to=: the
-    /// subtitles of one track between two times (seconds, the file's own),
+    /// subtitles of one track between two times (seconds from the file's start),
     /// read from there rather than from the start of the file. Text comes as
     /// WebVTT, pictures (PGS) as a .sup stream, copied. Only tracks in files
     /// on disk: a stream from the network is a 404, never fetched.
@@ -176,7 +179,23 @@ public class OverfinController : ControllerBase
             }
         }
 
-        var args = Stretch.Arguments(path, track.IsExternal, fileIndex, from, to, format.Value);
+        // A text file of its own may not be UTF-8 (French .srt files often
+        // are Windows-1252): its character set as Jellyfin tells it, else
+        // ffmpeg drops each line it can't read.
+        string? charset = null;
+        if (track.IsExternal && format == StretchFormat.WebVtt)
+        {
+            try
+            {
+                charset = await _subtitles.GetSubtitleFileCharacterSet(track, track.Language, media, cancel).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                charset = null;
+            }
+        }
+
+        var args = Stretch.Arguments(path, track.IsExternal, fileIndex, from, to, format.Value, charset);
         var (output, failure) = await Ffmpeg.Run(_encoder.EncoderPath, args, max, cancel).ConfigureAwait(false);
         if (failure != RunFailure.None)
         {

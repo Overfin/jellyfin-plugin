@@ -45,23 +45,36 @@ internal static class Stretch
     /// <summary>
     /// ffmpeg's arguments: read from `from` (a seek, not a read of the whole
     /// file), keep the file's own times, take one stream, stop writing at
-    /// `to`, write it to the standard output. The end is the output's: as the
+    /// `to`, write it to the standard output. Times count from the file's
+    /// start (-start_at_zero), as the player's do: a file whose own times
+    /// start later (TS recordings, often minutes in) would otherwise give
+    /// empty or shifted stretches. The end is the output's: as the
     /// input's (-t or -to before -i), some files are read to their end
     /// (Inception's 4K Matroska: 36 s for a stretch instead of 1.5 s). external: the track is a file
     /// of its own, its first subtitle stream; else stream `index` of the
     /// video file.
     /// </summary>
-    public static IReadOnlyList<string> Arguments(string path, bool external, int index, double from, double to, StretchFormat format)
+    public static IReadOnlyList<string> Arguments(string path, bool external, int index, double from, double to, StretchFormat format, string? charset = null)
     {
         var args = new List<string>
         {
             "-nostdin", "-hide_banner", "-loglevel", "error",
-            "-copyts",
+            "-copyts", "-start_at_zero",
             "-ss", Seconds(from),
+        };
+        // A text file's character set, when it isn't UTF-8 (a name only:
+        // letters, digits, dashes and underscores).
+        if (external && format == StretchFormat.WebVtt && Charset(charset) is { } cs)
+        {
+            args.AddRange(["-sub_charenc", cs]);
+        }
+
+        args.AddRange(
+        [
             "-i", "file:" + path,
             "-map", external ? "0:s:0" : "0:" + index.ToString(CultureInfo.InvariantCulture),
             "-to", Seconds(to),
-        };
+        ]);
         if (format == StretchFormat.Sup)
         {
             args.AddRange(["-c:s", "copy", "-f", "sup"]);
@@ -95,6 +108,24 @@ internal static class Stretch
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// A character set worth naming to ffmpeg: null for none, UTF-8 (and
+    /// ASCII, its part), or anything but a plain name.
+    /// </summary>
+    internal static string? Charset(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 40 || !name.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+        {
+            return null;
+        }
+
+        return name.ToLowerInvariant() switch
+        {
+            "utf-8" or "utf8" or "ascii" or "us-ascii" => null,
+            _ => name,
+        };
     }
 
     private static string Seconds(double s) => s.ToString("0.###", CultureInfo.InvariantCulture);
