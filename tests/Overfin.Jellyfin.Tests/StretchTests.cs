@@ -41,6 +41,9 @@ public class StretchTests
             ["-nostdin", "-hide_banner", "-loglevel", "error", "-copyts", "-start_at_zero", "-ss", "1790.5",
              "-i", "file:/media/a:b.mkv", "-map", "0:7", "-to", "1920", "-c:s", "copy", "-f", "sup", "pipe:1"],
             args);
+        // Matroska keeps its own times, as its reader does.
+        Assert.DoesNotContain("-start_at_zero", Stretch.Arguments("/media/a.mkv", false, 3, 0, 120, StretchFormat.WebVtt, null, true));
+        Assert.True(Stretch.IsMatroska("mkv") && Stretch.IsMatroska("matroska,webm") && !Stretch.IsMatroska("mpegts") && !Stretch.IsMatroska(null));
         var text = Stretch.Arguments("/media/a.fr.srt", true, 12, 0, 120, StretchFormat.WebVtt);
         Assert.Contains("0:s:0", text);
         Assert.Equal(["-c:s", "webvtt", "-f", "webvtt", "pipe:1"], text.Skip(text.Count - 5));

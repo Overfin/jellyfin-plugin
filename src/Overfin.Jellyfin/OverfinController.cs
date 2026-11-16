@@ -194,7 +194,8 @@ public class OverfinController : ControllerBase
             }
         }
 
-        var args = Stretch.Arguments(path, track.IsExternal, fileIndex, from, to, format.Value, charset);
+        var matroska = !track.IsExternal && Stretch.IsMatroska(media.Container);
+        var args = Stretch.Arguments(path, track.IsExternal, fileIndex, from, to, format.Value, charset, matroska);
         var (output, failure) = await Ffmpeg.Run(_encoder.EncoderPath, args, max, cancel).ConfigureAwait(false);
         if (failure != RunFailure.None)
         {

@@ -48,20 +48,23 @@ internal static class Stretch
     /// `to`, write it to the standard output. Times count from the file's
     /// start (-start_at_zero), as the player's do: a file whose own times
     /// start later (TS recordings, often minutes in) would otherwise give
-    /// empty or shifted stretches. The end is the output's: as the
+    /// empty or shifted stretches. Not for Matroska (matroska): its own
+    /// reader (Mkv) keeps the file's times, and this way stands in for it
+    /// when it can't read one, so both must agree. The end is the output's: as the
     /// input's (-t or -to before -i), some files are read to their end
     /// (Inception's 4K Matroska: 36 s for a stretch instead of 1.5 s). external: the track is a file
     /// of its own, its first subtitle stream; else stream `index` of the
     /// video file.
     /// </summary>
-    public static IReadOnlyList<string> Arguments(string path, bool external, int index, double from, double to, StretchFormat format, string? charset = null)
+    public static IReadOnlyList<string> Arguments(string path, bool external, int index, double from, double to, StretchFormat format, string? charset = null, bool matroska = false)
     {
-        var args = new List<string>
+        var args = new List<string> { "-nostdin", "-hide_banner", "-loglevel", "error", "-copyts" };
+        if (!matroska)
         {
-            "-nostdin", "-hide_banner", "-loglevel", "error",
-            "-copyts", "-start_at_zero",
-            "-ss", Seconds(from),
-        };
+            args.Add("-start_at_zero");
+        }
+
+        args.AddRange(["-ss", Seconds(from)]);
         // A text file's character set, when it isn't UTF-8 (a name only:
         // letters, digits, dashes and underscores).
         if (external && format == StretchFormat.WebVtt && Charset(charset) is { } cs)
@@ -127,6 +130,10 @@ internal static class Stretch
             _ => name,
         };
     }
+
+    /// <summary>Whether Jellyfin's container names Matroska (or WebM, its subset).</summary>
+    public static bool IsMatroska(string? container) =>
+        container is not null && container.Split(',').Any(c => c.Trim().ToLowerInvariant() is "mkv" or "mka" or "matroska" or "webm");
 
     private static string Seconds(double s) => s.ToString("0.###", CultureInfo.InvariantCulture);
 }
