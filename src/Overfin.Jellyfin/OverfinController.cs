@@ -230,6 +230,13 @@ public class OverfinController : ControllerBase
             return NotFound();
         }
 
+        // Past the end, when the length is known: no frame there (ffmpeg
+        // would fail, which reads as a failure, not "nothing at that moment").
+        if (media.RunTimeTicks is > 0 && at >= TimeSpan.FromTicks(media.RunTimeTicks.Value).TotalSeconds)
+        {
+            return NotFound();
+        }
+
         var hdr = stream.VideoRange == VideoRange.HDR;
         var (output, failure) = await Ffmpeg.Run(_encoder.EncoderPath, Jellyfin.Frame.Arguments(media.Path, at, hdr), MaxFrame, cancel).ConfigureAwait(false);
         if (failure != RunFailure.None)
