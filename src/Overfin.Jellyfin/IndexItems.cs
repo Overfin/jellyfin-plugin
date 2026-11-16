@@ -76,7 +76,9 @@ internal static class IndexItems
             var ids = library.GetItemIds(new InternalItemsQuery { IncludeItemTypes = Kinds, Recursive = true, AncestorIds = [folder] });
             foreach (var id in ids)
             {
-                all.TryAdd(id.ToString("N"), folder);
+                // In two libraries: the one ByIds picks too (Lower).
+                var key = id.ToString("N");
+                all[key] = all.TryGetValue(key, out var other) ? Lower(other, folder) : folder;
             }
         }
 
@@ -104,6 +106,14 @@ internal static class IndexItems
         return new IndexPage(items, null);
     }
 
+    /// <summary>
+    /// Of two libraries an item is in, the one it's listed in: the lower ID,
+    /// whichever way it's read, so it doesn't change library between a full
+    /// read and a read of changes.
+    /// </summary>
+    internal static Guid Lower(Guid a, Guid b) =>
+        string.CompareOrdinal(a.ToString("N"), b.ToString("N")) <= 0 ? a : b;
+
     /// <summary>The items among ids that are still in a library.</summary>
     public static List<IndexItem> ByIds(ILibraryManager library, IEnumerable<Guid> ids)
     {
@@ -116,7 +126,7 @@ internal static class IndexItems
                 continue;
             }
 
-            var folder = library.GetCollectionFolders(item).Select(f => f.Id).FirstOrDefault(libraries.Contains);
+            var folder = library.GetCollectionFolders(item).Select(f => f.Id).Where(libraries.Contains).Aggregate(Guid.Empty, (a, b) => a == Guid.Empty ? b : Lower(a, b));
             if (folder != Guid.Empty && Of(item, folder) is { } it)
             {
                 items.Add(it);
