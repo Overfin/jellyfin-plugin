@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -189,9 +188,9 @@ public class OverfinController : ControllerBase
             {
                 charset = await _subtitles.GetSubtitleFileCharacterSet(track, track.Language, media, cancel).ConfigureAwait(false);
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
-                charset = null;
+                charset = null; // as before: ffmpeg reads it as UTF-8
             }
         }
 
